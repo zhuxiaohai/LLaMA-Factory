@@ -578,5 +578,59 @@
       "prompt": "content"
     },
     "folder": "python"
+  },
+  "adgen_local_train": {
+    "file_name": "AdvertiseGen/train.json",
+    "columns": {
+      "prompt": "content",
+      "response": "summary"
+    }
+  },
+  "adgen_local_dev": {
+    "file_name": "AdvertiseGen/dev.json",
+    "columns": {
+      "prompt": "content",
+      "response": "summary"
+    }
+  },
+  "tool_alpaca_dev": {
+    "file_name": "ToolAlpaca/data/formatted_data/tool_alpaca_dev_sharegpt.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "tools": "tools"
+    }
+  },
+  "roborock_control": {
+    "file_name": "ToolAlpaca/data/formatted_data/robocontrol_dataset_sharegpt.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "tools": "tools"
+    }
+  },
+  "roborock_control_testset": {
+    "file_name": "ToolAlpaca/data/formatted_data/robocontrol_dataset_testset_sharegpt.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "tools": "tools"
+    }
+  },
+  "roborock_control_testset_dpo": {
+    "file_name": "ToolAlpaca/data/formatted_data/robocontrol_dataset_testset_dpo.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "tools": "tools"
+    }
+  },
+  "roborock_control_high_ppl": {
+    "file_name": "ToolAlpaca/data/formatted_data/robocontrol_dataset_high_ppl_sharegpt.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "tools": "tools"
+    }
   }
 }

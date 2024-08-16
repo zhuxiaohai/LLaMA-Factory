@@ -1,0 +1,14 @@
+CUDA_VISIBLE_DEVICES=0 python src/train_bash.py \
+    --stage sft \
+    --do_predict \
+    --model_name_or_path /data/dataset/huggingface/hub/chatglm3-6b \
+    --adapter_name_or_path models/roborock_control_lora/checkpoint-1000,models/roborock_control_lora_dpo/checkpoint-10 \
+    --dataset roborock_control_testset \
+    --template chatglm3 \
+    --cutoff_len 2048 \
+    --finetuning_type lora \
+    --output_dir outputs/roborock_control_lora_dpo_output \
+    --per_device_eval_batch_size 4 \
+    --max_samples 100 \
+    --predict_with_generate \
+    --fp16
