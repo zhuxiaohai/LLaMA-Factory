@@ -16,10 +16,16 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Any, Dict, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence
 
 import torch
 from transformers import DataCollatorForSeq2Seq
+
+
+if TYPE_CHECKING:
+    from transformers import ProcessorMixin
+
+    from .template import Template
 
 
 def prepare_4d_attention_mask(attention_mask_with_indices: "torch.Tensor", dtype: "torch.dtype") -> "torch.Tensor":
@@ -62,7 +68,37 @@ def prepare_4d_attention_mask(attention_mask_with_indices: "torch.Tensor", dtype
 
 
 @dataclass
-class SFTDataCollatorWith4DAttentionMask(DataCollatorForSeq2Seq):
+class MultiModalDataCollatorForSeq2Seq(DataCollatorForSeq2Seq):
+    r"""
+    Data collator that supports VLMs.
+
+    Features should contain input_ids, attention_mask, labels and images.
+    """
+
+    template: Optional["Template"] = None
+    processor: Optional["ProcessorMixin"] = None
+
+    def __call__(self, features: Sequence[Dict[str, Any]]) -> Dict[str, "torch.Tensor"]:
+        batch_images, batch_imglens, batch_seqlens = [], [], []
+        for feature in features:
+            images = feature.pop("images") or []  # avoid NoneType
+            batch_images.extend(images)
+            batch_imglens.append(len(images))
+            batch_seqlens.append(len(feature["input_ids"]))
+
+        mm_inputs = self.template.mm_plugin.get_mm_inputs(batch_images, batch_imglens, batch_seqlens, self.processor)
+        if "token_type_ids" in mm_inputs:
+            token_type_ids = mm_inputs.pop("token_type_ids")
+            for i, feature in enumerate(features):
+                feature["token_type_ids"] = token_type_ids[i]
+
+        features: Dict[str, "torch.Tensor"] = super().__call__(features)
+        features.update(mm_inputs)
+        return features
+
+
+@dataclass
+class SFTDataCollatorWith4DAttentionMask(MultiModalDataCollatorForSeq2Seq):
     r"""
     Data collator for 4d attention mask.
     """
@@ -80,7 +116,7 @@ class SFTDataCollatorWith4DAttentionMask(DataCollatorForSeq2Seq):
 
 
 @dataclass
-class PairwiseDataCollatorWithPadding(DataCollatorForSeq2Seq):
+class PairwiseDataCollatorWithPadding(MultiModalDataCollatorForSeq2Seq):
     r"""
     Data collator for pairwise data.
     """
@@ -99,20 +135,15 @@ class PairwiseDataCollatorWithPadding(DataCollatorForSeq2Seq):
                     "input_ids": feature["{}_input_ids".format(key)],
                     "attention_mask": feature["{}_attention_mask".format(key)],
                     "labels": feature["{}_labels".format(key)],
+                    "images": feature["images"],
                 }
-                if "pixel_values" in feature:
-                    target_feature["pixel_values"] = feature["pixel_values"]
-
-                if "{}_token_type_ids".format(key) in feature:
-                    target_feature["token_type_ids"] = feature["{}_token_type_ids".format(key)]
-
                 concatenated_features.append(target_feature)
 
         return super().__call__(concatenated_features)
 
 
 @dataclass
-class KTODataCollatorWithPadding(DataCollatorForSeq2Seq):
+class KTODataCollatorWithPadding(MultiModalDataCollatorForSeq2Seq):
     r"""
     Data collator for KTO data.
     """
@@ -126,19 +157,14 @@ class KTODataCollatorWithPadding(DataCollatorForSeq2Seq):
                 "input_ids": feature["input_ids"],
                 "attention_mask": feature["attention_mask"],
                 "labels": feature["labels"],
+                "images": feature["images"],
             }
             kl_feature = {
                 "input_ids": feature["kl_input_ids"],
                 "attention_mask": feature["kl_attention_mask"],
                 "labels": feature["kl_labels"],
+                "images": feature["images"],
             }
-            if "pixel_values" in feature:
-                target_feature["pixel_values"] = feature["pixel_values"]
-
-            if "token_type_ids" in feature:
-                target_feature["token_type_ids"] = feature["token_type_ids"]
-                kl_feature["token_type_ids"] = feature["kl_token_type_ids"]
-
             target_features.append(target_feature)
             kl_features.append(kl_feature)
             kto_tags.append(feature["kto_tags"])
@@ -148,7 +174,7 @@ class KTODataCollatorWithPadding(DataCollatorForSeq2Seq):
         batch["kl_input_ids"] = kl_batch["input_ids"]
         batch["kl_attention_mask"] = kl_batch["attention_mask"]
         batch["kl_labels"] = kl_batch["labels"]
-        if "token_type_ids" in batch:
+        if "token_type_ids" in kl_batch:
             batch["kl_token_type_ids"] = kl_batch["token_type_ids"]
 
         batch["kto_tags"] = torch.tensor(kto_tags)
